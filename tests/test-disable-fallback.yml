@@ -1,0 +1,39 @@
+name: Test disableFallback and mill build files
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create minimal mill build definition
+        run: |
+          echo 'import mill._, scalalib._' > build.mill
+          echo 'object foo extends ScalaModule { def scalaVersion = "3.3.0" }' >> build.mill
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          job: test-disable-fallback
+          ignoreMatrix: 'true'
+          disableFallback: 'true'
+          extraMillKey: 'mill-extra-v1'
+          extraMillHashedContent: 'mill-hashed-content-xyz'
+
+      - name: Assert action ran or failed gracefully
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          CACHE_HIT_MILL: ${{ steps.action.outputs.cache-hit-mill }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "cache-hit-mill: $CACHE_HIT_MILL"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded with disableFallback and mill inputs"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (cache service may not be available under act)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

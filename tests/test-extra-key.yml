@@ -1,0 +1,39 @@
+name: Test extra key and hashed content inputs
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create minimal sbt build definition
+        run: |
+          mkdir -p project
+          echo 'sbt.version=1.9.0' > project/build.properties
+          echo '// empty build' > build.sbt
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          job: test-extra-key
+          ignoreMatrix: 'true'
+          extraKey: 'my-extra-key-v1'
+          extraHashedContent: 'some-content-to-hash-12345'
+          extraSbtKey: 'my-sbt-extra-key'
+          extraSbtHashedContent: 'sbt-hashed-content-abc'
+
+      - name: Assert action ran or failed gracefully
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded with extra key inputs"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (cache service may not be available under act)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

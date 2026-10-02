@@ -1,14 +1,195 @@
-# coursier/cache-action
+# coursier cache action
 
-Restores and saves the coursier cache
+A GitHub action to save / restore the coursier / sbt / mill / Ammonite caches of your build.
 
-Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at [https://github.com/coursier/cache-action](https://github.com/coursier/cache-action).
+## Usage
 
-## Versions
+Add a `coursier/cache-action@v7` step to your YAML workflow, like
+```yaml
+    steps:
+      - uses: actions/checkout@v5
+      - uses: coursier/cache-action@v7
+```
 
-| Version | Tag | Upstream commit |
-|---------|-----|-----------------|
-| v6 | [`v6`](https://github.com/chainguard-actions/coursier-cache-action/tree/v6) | [`4e26158`](https://github.com/coursier/cache-action/commit/4e2615869d13561d626ed48655e1a39e5b192b3c) |
+## Cached directories
+
+### Coursier cache
+
+Always cached.
+
+Add files to take into account in its cache key via [`extraFiles`](#extrafiles).
+
+### `~/.sbt` and `~/.ivy2/cache`
+
+Cached when sbt files are found (any of `*.sbt`, `project/**.scala`, `project/**.sbt`, `project/build.properties`).
+
+Add files to take into account in its cache key via [`extraSbtFiles`](#extrasbtfiles).
+
+### `~/.cache/mill`
+
+Cached when mill files are found (any of `.mill-version`, `./mill`).
+
+Add files to take into account in its cache key via [`extraMillFiles`](#extramillfiles).
+
+### `~/.ammonite`
+
+Cached when Ammonite scripts are found (any of `*.sc`, `*/*.sc`).
+
+Add files to take into account in its cache key via [`ammoniteScripts`](#ammonitescripts).
+
+## Parameters
+
+### `root`
+
+*Optional* Root directory containing build definition sources (`build.sbt`, `build.sc`, etc.)
+
+If the sbt or mill build definition files are in a sub-directory, pass the path to this
+sub-directory here.
+
+### `path`
+
+*Optional* Override for the path of the coursier cache.
+
+By default, the coursier cache is assumed to be in the [default OS-dependent location](https://get-coursier.io/docs/cache.html#default-location).
+Set this input to override that. Note that this action will also set the `COURSIER_CACHE` environment variable
+if an override is specified, so that you don't have to set it yourself.
+
+### `extraFiles`
+
+*Optional* Extra files to take into account in the cache key.
+
+By default, sbt build definition files (`*.sbt`, `project/**.{scala,sbt}`, `project/build.properties`) and
+mill build definition files (`*.sc`, `./mill`) are hashed to uniquely identify the cached data. Upon
+cache restoration, if an exact match is found, the cache is not saved again at the end of the job.
+In case of no exact match, it is assumed new files may have been fetched; the previous cache for the
+current OS, if any, is restored, but a new cache is persisted with a new key at the end of the job.
+
+To take into account extra files in the cache key, pass via `extraFiles` either
+- a single path as a string
+- multiple paths in a JSON array, encoded in a string
+
+Blobs are accepted (processed by [@actions/glob](https://www.npmjs.com/package/@actions/glob)).
+
+### `extraSbtFiles`
+
+*Optional* Extra sbt files to take into account in the sbt cache key. Same format as extraFiles.
+
+### `extraMillFiles`
+
+*Optional* Extra mill files to take into account in the mill cache key. Same format as extraFiles.
+
+### `ammoniteScripts`
+
+*Optional* Extra Ammonite scripts to take into account in the Ammonite cache key. Same format as extraFiles.
+
+### `extraKey`
+
+*Optional*
+
+Extra value to be appended to the coursier cache key.
+
+See `extraFiles` for more details.
+
+### `extraHashedContent`
+
+*Optional*
+
+Extra content to take into account in the cache key.
+
+See `extraFiles` for more details.
+
+The content of `extraHashedContent` is taken into account in the hash for the coursier cache key.
+
+### `ignoreJob`
+
+*Optional*
+
+Default: `false`
+
+Set `true` if you don't want to use a job id as part of cache key.
+
+### `ignoreMatrix`
+
+*Optional*
+
+Default: `false`
+
+Set `true` if you don't want to use a matrix jobs as part of cache key.
+
+### `ignoreAmmonite`
+
+*Optional*
+
+Default: `false`
+
+Set `true` to skip saving and restoring the Ammonite cache, regardless of whether the repository contains `.sc` scripts.
+
+### `disableFallback`
+
+*Optional*
+
+Default: `false`
+
+Set `true` to disable falling back to a less specific cache key when there is no exact cache hit. By default, if no exact cache match is found, the action will restore from a more general cache key (e.g. from a different job or build configuration). Disabling this prevents unintended cache sharing across jobs or matrix instances that have different dependency sets.
+
+## Cache invalidation
+
+To manually invalidate the cache without changing your build files, set the `COURSIER_CACHE_ACTION_CACHE_VERSION`
+environment variable in your workflow. Changing its value produces a different cache key across all
+cache types, so the old cache is ignored and a fresh one is created.
+
+The variable can be set at the workflow level so that it applies to every step:
+
+```yaml
+env:
+  COURSIER_CACHE_ACTION_CACHE_VERSION: 1   # increment this value to invalidate the cache
+
+steps:
+  - uses: actions/checkout@v5
+  - uses: coursier/cache-action@v7
+```
+
+Or it can be scoped to only the `coursier/cache-action` step:
+
+```yaml
+steps:
+  - uses: actions/checkout@v5
+  - uses: coursier/cache-action@v7
+    env:
+      COURSIER_CACHE_ACTION_CACHE_VERSION: 1   # increment this value to invalidate the cache
+```
+
+This is equivalent to passing the version as `extraHashedContent`, but more convenient because it
+can be set globally for the whole workflow (or even as a repository variable / secret) without
+touching the individual step configuration.
+
+## Outputs
+
+* `cache-hit-coursier` - A boolean value to indicate a match was found for the coursier cache
+* `cache-hit-sbt-ivy2-cache` - A boolean value to indicate a match was found for the sbt-ivy2-cache cache
+* `cache-hit-mill` - A boolean value to indicate a match was found for the mill cache
+* `cache-hit-ammonite` - A boolean value to indicate a match was found for the ammonite cache
+
+> See [Skipping steps based on cache-hit](#Skipping-steps-based-on-cache-hit) for info on using this output
+
+## Skipping steps based on cache-hit
+
+Using the `cache-hit-...` outputs above, subsequent steps can be skipped when a cache hit occurs on a given key.
+
+Example:
+```yaml
+steps:
+  - uses: actions/checkout@v5
+
+  - uses: coursier/cache-action@v7
+    id: coursier-cache
+
+  - name: Fetch Dependencies
+    if: steps.coursier-cache.outputs.cache-hit-coursier != 'true'
+    run: sbt +update
+```
+
+> Note: The `id` defined in `coursier/cache-action` must match the `id` in the `if` statement (i.e. `steps.[ID].outputs.cache-hit-coursier`)
 
 ## Privacy
 
