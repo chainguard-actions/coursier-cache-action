@@ -1,0 +1,11 @@
+{
+  "owner": "coursier",
+  "repo": "cache-action",
+  "version": "v6",
+  "commit_sha": "4e2615869d13561d626ed48655e1a39e5b192b3c",
+  "url": "https://github.com/coursier/cache-action",
+  "policy_sha": "d636be7e43ef829af6e853da6b3c7566db9f72fe",
+  "test_policy_sha": "843adf9e4b8f85d0c08b27b9d0b09dd094b54702",
+  "test_agent_version": "2",
+  "harden_agent_version": "2"
+}

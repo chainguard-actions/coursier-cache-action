@@ -1,0 +1,43 @@
+name: Test all cache-hit outputs
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          job: test-all-outputs
+          extraKey: all-outputs-test
+      - name: Assert all cache-hit outputs are valid
+        env:
+          CACHE_HIT_COURSIER: ${{ steps.action.outputs.cache-hit-coursier }}
+          CACHE_HIT_SBT: ${{ steps.action.outputs.cache-hit-sbt-ivy2-cache }}
+          CACHE_HIT_MILL: ${{ steps.action.outputs.cache-hit-mill }}
+          CACHE_HIT_AMMONITE: ${{ steps.action.outputs.cache-hit-ammonite }}
+        run: |
+          echo "cache-hit-coursier:      $CACHE_HIT_COURSIER"
+          echo "cache-hit-sbt-ivy2-cache: $CACHE_HIT_SBT"
+          echo "cache-hit-mill:          $CACHE_HIT_MILL"
+          echo "cache-hit-ammonite:      $CACHE_HIT_AMMONITE"
+
+          FAILED=0
+          for name_val in \
+            "cache-hit-coursier:$CACHE_HIT_COURSIER" \
+            "cache-hit-sbt-ivy2-cache:$CACHE_HIT_SBT" \
+            "cache-hit-mill:$CACHE_HIT_MILL" \
+            "cache-hit-ammonite:$CACHE_HIT_AMMONITE"; do
+            name="${name_val%%:*}"
+            val="${name_val#*:}"
+            if [ "$val" != "true" ] && [ "$val" != "false" ] && [ -n "$val" ]; then
+              echo "FAIL: $name has unexpected value: '$val'"
+              FAILED=1
+            fi
+          done
+
+          if [ "$FAILED" = "1" ]; then
+            exit 1
+          fi
+          echo "PASS: all cache-hit outputs are valid (true, false, or empty on first run)"

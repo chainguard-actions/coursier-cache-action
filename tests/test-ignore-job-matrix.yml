@@ -1,0 +1,28 @@
+name: Test ignore job and matrix in cache key
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          ignoreJob: 'true'
+          ignoreMatrix: 'true'
+      - name: Assert action completed with ignoreJob and ignoreMatrix
+        env:
+          CACHE_HIT_COURSIER: ${{ steps.action.outputs.cache-hit-coursier }}
+          CACHE_HIT_SBT: ${{ steps.action.outputs.cache-hit-sbt-ivy2-cache }}
+        run: |
+          echo "cache-hit-coursier: $CACHE_HIT_COURSIER"
+          echo "cache-hit-sbt-ivy2-cache: $CACHE_HIT_SBT"
+          # Both outputs should be true, false, or empty (first run)
+          for val in "$CACHE_HIT_COURSIER" "$CACHE_HIT_SBT"; do
+            if [ "$val" != "true" ] && [ "$val" != "false" ] && [ -n "$val" ]; then
+              echo "FAIL: unexpected output value: '$val'"
+              exit 1
+            fi
+          done
+          echo "PASS: action completed with ignoreJob=true and ignoreMatrix=true"

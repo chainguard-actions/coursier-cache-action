@@ -1,0 +1,25 @@
+name: Test extra key customization
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          job: test-extra-key
+          extraKey: my-custom-key-suffix
+          extraHashedContent: "scala-version=2.13.12"
+      - name: Assert action completed with extra key
+        env:
+          CACHE_HIT_COURSIER: ${{ steps.action.outputs.cache-hit-coursier }}
+        run: |
+          echo "cache-hit-coursier: $CACHE_HIT_COURSIER"
+          if [ "$CACHE_HIT_COURSIER" = "true" ] || [ "$CACHE_HIT_COURSIER" = "false" ] || [ -z "$CACHE_HIT_COURSIER" ]; then
+            echo "PASS: action completed with extra key, cache-hit-coursier='$CACHE_HIT_COURSIER'"
+          else
+            echo "FAIL: unexpected value for cache-hit-coursier: '$CACHE_HIT_COURSIER'"
+            exit 1
+          fi

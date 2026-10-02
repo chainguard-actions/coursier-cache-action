@@ -1,0 +1,25 @@
+name: Test basic usage
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          job: test-basic
+      - name: Assert action ran and outputs are set
+        env:
+          CACHE_HIT_COURSIER: ${{ steps.action.outputs.cache-hit-coursier }}
+        run: |
+          echo "cache-hit-coursier: $CACHE_HIT_COURSIER"
+          # The output should be 'true' or 'false' (or empty on first run)
+          # Either way the action should have completed without error
+          if [ "$CACHE_HIT_COURSIER" = "true" ] || [ "$CACHE_HIT_COURSIER" = "false" ] || [ -z "$CACHE_HIT_COURSIER" ]; then
+            echo "PASS: action completed, cache-hit-coursier='$CACHE_HIT_COURSIER'"
+          else
+            echo "FAIL: unexpected value for cache-hit-coursier: '$CACHE_HIT_COURSIER'"
+            exit 1
+          fi
