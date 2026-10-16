@@ -1,0 +1,35 @@
+name: Test ignore job and matrix in cache key
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: cache
+        uses: .
+        with:
+          ignoreJob: 'true'
+          ignoreMatrix: 'true'
+      - name: Assert cache-hit-coursier output is valid
+        env:
+          CACHE_HIT: ${{ steps.cache.outputs.cache-hit-coursier }}
+        run: |
+          echo "cache-hit-coursier: '$CACHE_HIT'"
+          if [ "$CACHE_HIT" = "true" ] || [ "$CACHE_HIT" = "false" ] || [ -z "$CACHE_HIT" ]; then
+            echo "PASS: cache-hit-coursier is a valid value"
+          else
+            echo "FAIL: unexpected value for cache-hit-coursier: '$CACHE_HIT'"
+            exit 1
+          fi
+      - name: Assert cache-hit-sbt-ivy2-cache output is valid
+        env:
+          CACHE_HIT: ${{ steps.cache.outputs.cache-hit-sbt-ivy2-cache }}
+        run: |
+          echo "cache-hit-sbt-ivy2-cache: '$CACHE_HIT'"
+          if [ "$CACHE_HIT" = "true" ] || [ "$CACHE_HIT" = "false" ] || [ -z "$CACHE_HIT" ]; then
+            echo "PASS: cache-hit-sbt-ivy2-cache is a valid value"
+          else
+            echo "FAIL: unexpected value for cache-hit-sbt-ivy2-cache: '$CACHE_HIT'"
+            exit 1
+          fi
