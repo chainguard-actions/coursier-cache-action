@@ -1,0 +1,28 @@
+name: Test coursier cache path override
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          path: /tmp/custom-coursier-cache
+          extraCoursierKey: path-override-test
+      - name: Assert COURSIER_CACHE exported and output set
+        env:
+          CS: ${{ steps.action.outputs.cache-hit-coursier }}
+        run: |
+          echo "COURSIER_CACHE: $COURSIER_CACHE"
+          echo "coursier: $CS"
+          if [ "$COURSIER_CACHE" != "/tmp/custom-coursier-cache" ]; then
+            echo "FAIL: expected COURSIER_CACHE=/tmp/custom-coursier-cache"
+            exit 1
+          fi
+          if [ "$CS" != "true" ] && [ "$CS" != "false" ]; then
+            echo "FAIL: expected boolean coursier output"
+            exit 1
+          fi
+          echo "PASS"

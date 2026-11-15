@@ -1,0 +1,31 @@
+name: Test mill project root
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          root: tests/fixtures/mill-project/
+          extraMillKey: mill-root-test
+      - name: Assert coursier and mill outputs set, sbt not
+        env:
+          CS: ${{ steps.action.outputs.cache-hit-coursier }}
+          SBT: ${{ steps.action.outputs.cache-hit-sbt-ivy2-cache }}
+          MILL: ${{ steps.action.outputs.cache-hit-mill }}
+        run: |
+          echo "coursier: $CS mill: $MILL sbt: '$SBT'"
+          for v in "$CS" "$MILL"; do
+            if [ "$v" != "true" ] && [ "$v" != "false" ]; then
+              echo "FAIL: expected boolean output, got '$v'"
+              exit 1
+            fi
+          done
+          if [ -n "$SBT" ]; then
+            echo "FAIL: sbt cache should not be handled for a mill-only project"
+            exit 1
+          fi
+          echo "PASS"
